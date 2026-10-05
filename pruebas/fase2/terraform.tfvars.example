@@ -1,0 +1,3 @@
+# Copia este archivo como terraform.tfvars (ese NO se sube a git) y pon tus valores.
+mi_ip              = "190.12.34.56/32"
+ruta_clave_publica = "~/.ssh/iac-sucursales.pub"
