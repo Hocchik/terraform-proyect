@@ -49,8 +49,9 @@ docs/ (diagrama y guion de sustentación)
 - Fases 0 y 1 hechas (network probado en AWS real con pruebas/network: 8 recursos, apply + destroy OK, 2026-10-04).
 - Fase 2 hecha (2026-10-16): pruebas/fase2 = 15 recursos, apply + SSH desde la IP del usuario + salida web (dnf) + destroy OK.
 - Fase 3 hecha (2026-10-16): pruebas/fase3 = 19 recursos, suscripción confirmada, alarma forzada a ALARM con `aws cloudwatch set-alarm-state` (llegó correo) y volvió sola a OK con datos reales (CPU 0.2 %), destroy OK.
-- Fase actual: 4 (multi-sucursal y state remoto). Esperando confirmación del usuario para empezar.
-- Repo: https://github.com/Hocchik/terraform-proyect (rama main). Primer commit c5113fa (Fases 1 y 2).
+- Fase 4 hecha (2026-10-16): bootstrap aplicado (bucket `iac-sucursales-tfstate-20261016220316735500000001`, PERMANENTE, no se destruye) y su state migrado al propio bucket (`bootstrap/terraform.tfstate`). Grupo piloto (lima-centro 10.1.0.0/16 + arequipa 10.2.0.0/16) = 37 recursos, apply + destroy OK; state en `grupos/piloto/sucursales.tfstate`.
+- Fase actual: 5 (secretos). Esperando confirmación del usuario para empezar.
+- Repo: https://github.com/Hocchik/terraform-proyect (rama main). Commits: c5113fa (Fases 1 y 2), ec8b3c5 (Fases 2 y 3) en la rama del worktree, sin push.
 - Pendiente: capturas 04-rutas, 05-gateways, 06-destroy de fase1 sin versionar porque muestran el ID de cuenta; taparlo antes de subirlas. Fase2: faltan 01-apply, 02-instancias, 03-sg-reglas (opcionales).
 - Capturas con ID de cuenta o correo: se tapan con un script de System.Drawing (rectángulos grises) y se verifican viéndolas antes de copiarlas a docs/evidencias. Los correos de AWS traen el ID en "AWS Account" y en los ARN.
 - Herramientas aún NO instaladas en el PC: checkov, tflint, gitleaks (necesarias en fases 5 y 6).
@@ -63,6 +64,10 @@ docs/ (diagrama y guion de sustentación)
   - monitoring: un tópico SNS por sucursal (la sucursal queda completa en su state, sin recursos compartidos) + una alarma CPU por VM (Average > 80 % en 2 periodos de 5 min, avisa en ALARM y en OK). Monitoreo básico (gratis). Tópico sin KMS: CloudWatch no publica en tópicos cifrados con aws/sns y una CMK cuesta $1/mes → `#checkov:skip=CKV_AWS_26` justificado. `correo` opcional (null = sin suscriptor, para LocalStack/CI). Capa gratuita: 10 alarmas = 5 sucursales reales.
   - El correo de SNS de AWS cae en "Correo no deseado" de Outlook; la suscripción no envía alertas hasta hacer clic en "Confirm subscription".
   - IP del usuario, ruta de llave SSH y correo en terraform.tfvars (no versionado); solo se versiona *.tfvars.example.
+  - State: uno por GRUPO = workspace de Terraform (backend S3 con `workspace_key_prefix = "grupos"` y `use_lockfile`, sin DynamoDB). El grupo sale de `terraform.workspace`, así no se puede aplicar un grupo sobre el state de otro. Output `grupo` con precondition: falla si el workspace no es un grupo del YAML (incluido `default`), por eso `validate` también necesita `$env:TF_WORKSPACE = "<grupo>"`.
+  - sucursales/: `sucursales.yaml` (lista nombre/grupo/cidr; nombre repetido = error) + for_each sobre los 4 módulos directamente (sin módulo "sucursal" envoltorio). Tag extra `Grupo`. Una llave SSH por grupo (`iac-sucursales-<grupo>`), pasada como contenido (`clave_publica_ssh`) para que funcione también en CI.
+  - bootstrap: `bucket_prefix` (nombre único sin exponer el ID de cuenta), versionado, SSE-S3 (KMS cuesta), bloqueo público, política solo HTTPS, lifecycle de versiones viejas a 90 días, `prevent_destroy`. Skips de checkov justificados en el código (logs de acceso, replicación, KMS, notificaciones).
+  - Comandos sucursales: `terraform init`, `terraform workspace select -or-create piloto`, `terraform plan -out=tfplan`.
   - network: subredes calculadas con cidrsubnet desde un solo CIDR por sucursal (/16 → /24), una por AZ, 2 por defecto (una por VM).
   - network: una sola tabla de rutas pública compartida; sin NAT (costo).
   - network: aws_default_security_group sin reglas (buena práctica; lo exige checkov).

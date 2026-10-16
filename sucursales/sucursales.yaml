@@ -1,0 +1,12 @@
+# Catálogo de sucursales. Para agregar una, copia un bloque y cambia:
+#   nombre: único, en minúsculas y con guiones (prefijo de todos sus recursos)
+#   grupo:  workspace de Terraform; cada grupo tiene su propio state en S3
+#   cidr:   /16 único por sucursal (de él salen las subredes /24)
+sucursales:
+  - nombre: lima-centro
+    grupo: piloto
+    cidr: 10.1.0.0/16
+
+  - nombre: arequipa
+    grupo: piloto
+    cidr: 10.2.0.0/16

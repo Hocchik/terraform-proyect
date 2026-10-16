@@ -1,0 +1,4 @@
+# Copia este archivo como terraform.tfvars (ese NO se sube a git) y pon tus valores.
+cidrs_ssh         = ["190.12.34.56/32"]
+clave_publica_ssh = "ssh-ed25519 AAAA...contenido-de-tu-archivo-.pub... iac-sucursales"
+correo            = "tu-correo@ejemplo.com"
