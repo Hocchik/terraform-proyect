@@ -47,12 +47,22 @@ docs/ (diagrama y guion de sustentación)
 
 ## Estado actual
 - Fases 0 y 1 hechas (network probado en AWS real con pruebas/network: 8 recursos, apply + destroy OK, 2026-10-04).
-- Fase actual: 2 (código de firewall y compute + pruebas/fase2 escritos; pendiente plan/apply del usuario).
+- Fase 2 hecha (2026-10-16): pruebas/fase2 = 15 recursos, apply + SSH desde la IP del usuario + salida web (dnf) + destroy OK.
+- Fase 3 hecha (2026-10-16): pruebas/fase3 = 19 recursos, suscripción confirmada, alarma forzada a ALARM con `aws cloudwatch set-alarm-state` (llegó correo) y volvió sola a OK con datos reales (CPU 0.2 %), destroy OK.
+- Fase actual: 4 (multi-sucursal y state remoto). Esperando confirmación del usuario para empezar.
+- Repo: https://github.com/Hocchik/terraform-proyect (rama main). Primer commit c5113fa (Fases 1 y 2).
+- Pendiente: capturas 04-rutas, 05-gateways, 06-destroy de fase1 sin versionar porque muestran el ID de cuenta; taparlo antes de subirlas. Fase2: faltan 01-apply, 02-instancias, 03-sg-reglas (opcionales).
+- Capturas con ID de cuenta o correo: se tapan con un script de System.Drawing (rectángulos grises) y se verifican viéndolas antes de copiarlas a docs/evidencias. Los correos de AWS traen el ID en "AWS Account" y en los ARN.
+- Herramientas aún NO instaladas en el PC: checkov, tflint, gitleaks (necesarias en fases 5 y 6).
 - Flujo de prueba: yo corro init/fmt/validate/plan -out=tfplan; el usuario corre `terraform apply tfplan` y `terraform destroy` en su PowerShell. Capturas en docs/evidencias/faseN/.
+  - Ojo: si la sesión corre en un worktree, el plan queda en `.claude\worktrees\<nombre>\pruebas\faseN`; darle al usuario el `cd` completo y los valores reales (IPs) en vez de placeholders como `<IP>`.
+  - Llave SSH: `$HOME\.ssh\iac-sucursales(.pub)` (ed25519). Entrar: `ssh -i "$HOME\.ssh\iac-sucursales" ec2-user@<ip>`; IPs con `terraform output ips_publicas`.
 - Decisiones tomadas:
   - firewall: reglas como recursos separados (aws_vpc_security_group_*_rule) para que el drift se vea por regla. SSH solo desde cidrs_ssh (se rechaza 0.0.0.0/0); salida solo 80/443.
   - compute: AL2023 vía parámetro público SSM, ignore_changes=[ami] (evita reemplazos/falso drift), IMDSv2 obligatorio, disco gp3 8 GB cifrado, validación t3.micro/t2.micro y máx 2 VMs. VMs repartidas por subred (i % n) = una por AZ.
-  - IP del usuario y ruta de llave SSH en terraform.tfvars (no versionado); solo se versiona *.tfvars.example.
+  - monitoring: un tópico SNS por sucursal (la sucursal queda completa en su state, sin recursos compartidos) + una alarma CPU por VM (Average > 80 % en 2 periodos de 5 min, avisa en ALARM y en OK). Monitoreo básico (gratis). Tópico sin KMS: CloudWatch no publica en tópicos cifrados con aws/sns y una CMK cuesta $1/mes → `#checkov:skip=CKV_AWS_26` justificado. `correo` opcional (null = sin suscriptor, para LocalStack/CI). Capa gratuita: 10 alarmas = 5 sucursales reales.
+  - El correo de SNS de AWS cae en "Correo no deseado" de Outlook; la suscripción no envía alertas hasta hacer clic en "Confirm subscription".
+  - IP del usuario, ruta de llave SSH y correo en terraform.tfvars (no versionado); solo se versiona *.tfvars.example.
   - network: subredes calculadas con cidrsubnet desde un solo CIDR por sucursal (/16 → /24), una por AZ, 2 por defecto (una por VM).
   - network: una sola tabla de rutas pública compartida; sin NAT (costo).
   - network: aws_default_security_group sin reglas (buena práctica; lo exige checkov).
