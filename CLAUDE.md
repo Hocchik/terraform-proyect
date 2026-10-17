@@ -25,7 +25,7 @@ Entregables a justificar en la sustentación: repositorio, módulos, state, pipe
 - Código simple, comentado en lo esencial, sin sobreingeniería. Cada módulo con variables.tf (con descripciones), outputs.tf y un README corto.
 
 ## Stack
-Terraform (>= 1.10, backend S3 con use_lockfile), AWS CLI, GitHub + GitHub Actions (autenticación OIDC, sin llaves guardadas), tflint, checkov, gitleaks, LocalStack (Docker). Entorno: Windows + PowerShell, proyecto en D:\Ciclo 10\Servicios Cloud\Proyecto-Terraform.
+Terraform (>= 1.10, backend S3 con use_lockfile), AWS CLI, GitHub + GitHub Actions (autenticación OIDC, sin llaves guardadas), tflint, checkov, gitleaks, LocalStack (Docker). Entorno: Windows + PowerShell. PC 1: D:\Ciclo 10\Servicios Cloud\Proyecto-Terraform; laptop 2: C:\Ciclo 10\Servicios Cloud\Terraform-proyect\terraform-proyect.
 
 ## Estructura
 modules/network, modules/compute, modules/firewall, modules/monitoring
@@ -51,13 +51,14 @@ docs/ (diagrama y guion de sustentación)
 - Fase 3 hecha (2026-10-16): pruebas/fase3 = 19 recursos, suscripción confirmada, alarma forzada a ALARM con `aws cloudwatch set-alarm-state` (llegó correo) y volvió sola a OK con datos reales (CPU 0.2 %), destroy OK.
 - Fase 4 hecha (2026-10-16): bootstrap aplicado (bucket `iac-sucursales-tfstate-20261016220316735500000001`, PERMANENTE, no se destruye) y su state migrado al propio bucket (`bootstrap/terraform.tfstate`). Grupo piloto (lima-centro 10.1.0.0/16 + arequipa 10.2.0.0/16) = 37 recursos, apply + destroy OK; state en `grupos/piloto/sucursales.tfstate`.
 - Fase actual: 5 (secretos). Esperando confirmación del usuario para empezar.
-- Repo: https://github.com/Hocchik/terraform-proyect (rama main). Commits: c5113fa (Fases 1 y 2), ec8b3c5 (Fases 2 y 3) en la rama del worktree, sin push.
+- Repo: https://github.com/Hocchik/terraform-proyect. Fases 3 y 4 (ec8b3c5, f528874) entran a main por PR desde `claude/continuar-proyecto-6b1ab6`. Orden acordado: PR → rama `laboratorio-monitoreo` → rama `fase-5-secretos`.
+- Laboratorio de monitoreo (aparte de las fases; guía "Monitoreo en la nube y gestión de métricas en TSDB", 40 min, informe 3-5 págs): carpeta `laboratorio-monitoreo/` con state propio (`laboratorio/monitoreo.tfstate`), reutiliza los 4 módulos con 1 sucursal `lab-monitoreo` de 2 VMs (vm-1 recibe la falla, vm-2 = control). CloudWatch en vez de Prometheus (la guía admite TSDB equivalente): CloudWatch Agent (CPU activa/steal y memoria a 1 min; máx 10 métricas personalizadas gratis), EBS para I/O, sonda de latencia por StatsD, dashboard, alarmas CPU + latencia. Fallas a analizar: CPU y memoria (`incidente.sh cpu|memoria|disco` con stress-ng). Cambios a módulos solo opcionales/compatibles (compute: user_data, perfil IAM, `cpu_credits = "standard"`; monitoring: output ARN de alarmas); el plan de sucursales debe seguir en 37.
 - Pendiente: capturas 04-rutas, 05-gateways, 06-destroy de fase1 sin versionar porque muestran el ID de cuenta; taparlo antes de subirlas. Fase2: faltan 01-apply, 02-instancias, 03-sg-reglas (opcionales).
 - Capturas con ID de cuenta o correo: se tapan con un script de System.Drawing (rectángulos grises) y se verifican viéndolas antes de copiarlas a docs/evidencias. Los correos de AWS traen el ID en "AWS Account" y en los ARN.
-- Herramientas aún NO instaladas en el PC: checkov, tflint, gitleaks (necesarias en fases 5 y 6).
+- Laptop 2 (2026-10-16): instalados terraform 1.16.5, AWS CLI 2.38.1, tflint 0.64.0, gitleaks 8.30.1 (winget) y checkov 3.3.29 (pip). Access key propia de la laptop (`laptop-2`) con `aws configure` hecho por el usuario; STS responde admin-iac. Si un comando recién instalado no se encuentra, abrir otra PowerShell (PATH).
 - Flujo de prueba: yo corro init/fmt/validate/plan -out=tfplan; el usuario corre `terraform apply tfplan` y `terraform destroy` en su PowerShell. Capturas en docs/evidencias/faseN/.
   - Ojo: si la sesión corre en un worktree, el plan queda en `.claude\worktrees\<nombre>\pruebas\faseN`; darle al usuario el `cd` completo y los valores reales (IPs) en vez de placeholders como `<IP>`.
-  - Llave SSH: `$HOME\.ssh\iac-sucursales(.pub)` (ed25519). Entrar: `ssh -i "$HOME\.ssh\iac-sucursales" ec2-user@<ip>`; IPs con `terraform output ips_publicas`.
+  - Llave SSH: `$HOME\.ssh\iac-sucursales(.pub)` (ed25519). Cada máquina tiene la suya: el key pair `iac-sucursales-<grupo>` usa la .pub del tfvars de quien aplica. Entrar: `ssh -i "$HOME\.ssh\iac-sucursales" ec2-user@<ip>`; IPs con `terraform output ips_publicas`.
 - Decisiones tomadas:
   - firewall: reglas como recursos separados (aws_vpc_security_group_*_rule) para que el drift se vea por regla. SSH solo desde cidrs_ssh (se rechaza 0.0.0.0/0); salida solo 80/443.
   - compute: AL2023 vía parámetro público SSM, ignore_changes=[ami] (evita reemplazos/falso drift), IMDSv2 obligatorio, disco gp3 8 GB cifrado, validación t3.micro/t2.micro y máx 2 VMs. VMs repartidas por subred (i % n) = una por AZ.
